@@ -26,7 +26,8 @@ def traverse_and_download(session, url, local_base_dir, visited):
         if href and not href.startswith('?') and not href.startswith('#'):
             full_url = urljoin(url, href)
             parsed = urlparse(full_url)
-            relative_path = os.path.relpath(parsed.path, '/wp-content/uploads/')
+            if parsed.path: 
+                relative_path = os.path.relpath(parsed.path, '/wp-content/uploads/')
             if parsed.path.endswith('/'):
                 traverse_and_download(session, full_url, local_base_dir, visited)
             else:
