@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import argparse
+import datetime
 
 def download_file(session, url, local_path):
     response = session.get(url, stream=True, timeout=10)
@@ -20,26 +21,37 @@ def traverse_and_download(session, url, local_base_dir, visited, skip_types, onl
 
     response = session.get(url, timeout=10)
     soup = BeautifulSoup(response.content, 'html.parser')
+    
+    links = sorted(soup.find_all('a'), key=lambda link: link.get('href') or '', reverse=True)
 
-    for link in soup.find_all('a'):
+    for link in links:
         href = link.get('href')
         if href and not href.startswith('?') and not href.startswith('#'):
             full_url = urljoin(url, href)
+            # if full_url in visited: 
+            #     continue
             parsed = urlparse(full_url)
+            relative_path = ''
             if parsed.path: 
+                if not parsed.path.startswith('/wp-content/uploads/'):
+                    continue
                 relative_path = os.path.relpath(parsed.path, '/wp-content/uploads/')
             if parsed.path.endswith('/'):
                 traverse_and_download(session, full_url, local_base_dir, visited, skip_types, only_types, keyword)
             else:
                 path_parts = relative_path.split('/')
                 if len(path_parts) >= 2:
-                    year = path_parts[0]
+                    if not path_parts[0].isdigit():
+                        continue
+                    year = int(path_parts[0])
+                    if year < 2000 or year > datetime.datetime.now().year:
+                        continue
                     month = path_parts[1]
                     filename = path_parts[-1]
                     file_extension = filename.split('.')[-1] if '.' in filename else ''
-                    if file_extension not in only_types:
+                    if only_types and file_extension not in only_types:
                         continue
-                    if file_extension in skip_types:
+                    if skip_types and file_extension in skip_types:
                         continue
                     if keyword and keyword.lower() not in filename.lower():
                         continue
